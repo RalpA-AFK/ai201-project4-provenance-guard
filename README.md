@@ -16,6 +16,17 @@ can contest the verdict via `POST /appeal`, which logs their reasoning alongside
 the original decision and moves the content to "under review". See
 [planning.md](planning.md) for the full architecture narrative and flow diagram.
 
+## Web interface
+
+Beyond the JSON API, the service serves a browser UI at the root (`GET /`,
+[templates/index.html](templates/index.html)): paste text, click **Analyze**, and
+see the verdict, a 0→1 AI-likelihood meter, and the full "why" — both signal
+scores, the language model's written rationale, the stylometry metrics, and a
+plain-English note on whether the signals agreed or disagreed. Each result also
+has a **"Disagree with this result? Appeal it"** control that files an appeal
+(moving the content to `under_review`) without leaving the page. Start the server
+and open <http://localhost:5000/>.
+
 ## Detection signals
 
 Two *distinct* signals — one semantic, one structural. They are independent
@@ -250,6 +261,7 @@ source .venv/Scripts/activate   # Windows (Git Bash); use .venv\Scripts\activate
 pip install -r requirements.txt
 # add GROQ_API_KEY to .env
 python app.py                   # serves on http://localhost:5000
+# then open http://localhost:5000/ in a browser for the web UI
 ```
 
 ## Known limitations

@@ -1,166 +1,153 @@
 ============================================================
 PROVENANCE GUARD — VIDEO WALKTHROUGH NOTES (~2 minutes)
+BROWSER VERSION — no terminal needed during recording
 ============================================================
-Goal: quick end-to-end tour + a couple of design decisions.
-Keep it short and unpolished. Detailed evidence is in the README.
+The whole demo runs in the web page at http://localhost:5000/.
+You paste sample text into the box, click Analyze, and talk through
+the result. Detailed evidence (rate limit, full audit log) lives in
+the README.
 
 LEGEND:
-   >>>>>>  COPY-PASTE  >>>>>>   = paste the line(s) below into a terminal
-   [SAY]                        = talk, don't type
-   [POINT]                      = point at this on screen
+   [SAY]                          = talk, don't type
+   >>> PASTE INTO THE BOX >>>     = copy this text into the web page's
+                                    input box, then click "Analyze"
+   [POINT]                        = point your cursor at this on screen
 
 ------------------------------------------------------------
-BEFORE YOU RECORD (do this off-camera)
+BEFORE YOU RECORD (off-camera)
 ------------------------------------------------------------
-[ ] Close other apps / notifications.
-[ ] Open TWO terminals in VS Code:
-      Terminal 1 = the SERVER   (PowerShell is fine)
-      Terminal 2 = the DEMO     (use GIT BASH — the curl single-quotes
-                                 only work in bash, not PowerShell)
-[ ] Fresh start so the rate-limit counter is clean (Ctrl+C the server
-    if it's running, then start it again below).
-[ ] Optional clean log on camera — run in Terminal 2 (git bash):
+[ ] Make sure your NEW Groq key is saved in .env.
+[ ] Start the server fresh so it loads the new key —
+    in a PowerShell terminal, run:
 
-   >>>>>>  COPY-PASTE (Terminal 2 / git bash)  >>>>>>
-rm -f audit_log.db
-   <<<<<<  end  <<<<<<
+       .venv\Scripts\python.exe app.py
 
+    Wait for:  Running on http://127.0.0.1:5000
+    (Use ".venv\Scripts\python.exe", NOT plain "python".)
 
-############################################################
-# TERMINAL 1 — START THE SERVER (leave visible on screen)
-############################################################
-
-   >>>>>>  COPY-PASTE (Terminal 1 / PowerShell)  >>>>>>
-cd c:\Users\babyd\.vscode\ai201-project4-provenance-guard
-.venv\Scripts\python.exe app.py
-   <<<<<<  end  <<<<<<
-
-Wait for:  Running on http://127.0.0.1:5000
-
-NOTE: use ".venv\Scripts\python.exe app.py" (the venv's Python) —
-plain "python app.py" uses system Python and fails with
-"No module named 'dotenv'". Do NOT type "cd activate.ps1".
+[ ] Open a browser to:  http://localhost:5000/
+[ ] Close notifications; maybe zoom the browser in a little (Ctrl +)
+    so the result panel is easy to read on camera.
 
 
 ############################################################
-# THE RECORDING — 6 BEATS   (all commands go in Terminal 2)
+THE RECORDING — 5 BEATS
 ############################################################
 
 ------------------------------------------------------------
 BEAT 1 — THE PROBLEM  (~15 sec, just talk)
 ------------------------------------------------------------
 [SAY]
-"Provenance Guard checks whether text was written by a human or AI.
-Perfect AI detection is unsolved, and on a writing platform falsely
-accusing a human is the worst outcome — so instead of forcing a
-yes/no, this system scores its confidence and is honest when it
-doesn't know."
+"This is Provenance Guard. It checks whether writing was made by a
+human or by AI. Perfect AI detection is impossible, and on a writing
+platform, falsely accusing a real person is the worst outcome — so
+instead of a hard yes/no, this system scores its confidence and is
+honest when it isn't sure. Let me show you."
 
 
 ------------------------------------------------------------
-BEAT 2 — CLEARLY HUMAN TEXT  (~30 sec)
+BEAT 2 — CLEARLY HUMAN TEXT  (~25 sec)
 ------------------------------------------------------------
-[SAY] "Here's a casual first-person post."
+[SAY] "First, a casual, personal post."
 
-   >>>>>>  COPY-PASTE (Terminal 2 / git bash)  >>>>>>
-curl -s -X POST http://localhost:5000/submit -H "Content-Type: application/json" -d '{"text":"ok so i finally tried that new ramen place downtown and honestly? underwhelming. the broth was fine but WAY too much sodium and i was thirsty for like three hours after. probably wont go back unless someone drags me","creator_id":"demo-human"}' | python -m json.tool
-   <<<<<<  end  <<<<<<
+   >>> PASTE INTO THE BOX >>>  (then click Analyze)
+ok so i finally tried that new ramen place downtown and honestly? underwhelming. the broth was fine but WAY too much sodium and i was thirsty for like three hours after. probably wont go back unless someone drags me
+   <<< end paste <<<
 
-[POINT] attribution = "likely_human", high confidence, and the
-        plain-language label a reader would see.
-[SAY]   "Both signals agree it reads human, so it sits confidently
+[POINT] the green "Likely human-written" verdict and the label text.
+[POINT] the "Why" panel — both signals sit low (toward human).
+[SAY]   "Both signals agree it reads human, so it lands confidently
         in the human band."
 
 
 ------------------------------------------------------------
-BEAT 3 — FORMAL HUMAN TEXT  (the key demo)  (~30 sec)
+BEAT 3 — FORMAL HUMAN TEXT  (the key beat)  (~35 sec)
 ------------------------------------------------------------
-[SAY] "Now formal human writing — the hard case."
+[SAY] "Now the hard case — formal human writing that *looks*
+      machine-made."
 
-   >>>>>>  COPY-PASTE (Terminal 2 / git bash)  >>>>>>
-curl -s -X POST http://localhost:5000/submit -H "Content-Type: application/json" -d '{"text":"The relationship between monetary policy and asset price inflation has been extensively studied in the literature. Central banks face a fundamental tension between price stability and prolonged low interest rates.","creator_id":"demo-formal"}' | python -m json.tool
-   <<<<<<  end  <<<<<<
+   >>> PASTE INTO THE BOX >>>  (then click Analyze)
+The relationship between monetary policy and asset price inflation has been extensively studied in the literature. Central banks face a fundamental tension between price stability and prolonged low interest rates.
+   <<< end paste <<<
 
-[POINT] attribution = "uncertain".
-[SAY]   "Stylometry sees long, uniform, sophisticated sentences and
-        thinks AI. The language model is less sure. Because the two
-        signals disagree, my scoring pulls the result toward the
-        middle — 'uncertain' — instead of falsely calling a real
-        human's work AI. That disagreement rule is the core design
-        decision."
+[POINT] the yellow "Not enough evidence to say" verdict.
+[POINT] the two signal bars — stylometry leans AI, the model is less
+        sure — and the line at the bottom saying the signals disagree.
+[SAY]   "The structural signal sees long, uniform, sophisticated
+        sentences and thinks AI. The language model is less sure.
+        Because they disagree, my scoring pulls the result toward the
+        uncertain middle instead of falsely accusing a real human.
+        That disagreement rule is the core design decision."
 
-*** COPY the "content_id" from this response — you need it in Beat 4 ***
+--- APPEAL (still Beat 3, same result on screen) ---
+[SAY] "And if a creator still disagrees, they can appeal."
+[POINT] click the "Disagree with this result? Appeal it" link.
 
+   >>> PASTE INTO THE APPEAL BOX >>>  (then click Submit appeal)
+I wrote this myself; English is my second language, so my writing tends to look more formal than average.
+   <<< end paste <<<
 
-------------------------------------------------------------
-BEAT 4 — APPEAL  (~20 sec)
-------------------------------------------------------------
-[SAY] "If a creator disagrees, they can appeal."
-
-   >>>>>>  COPY-PASTE (Terminal 2 / git bash)  >>>>>>
-   >>>>>>  FIRST replace PASTE-ID-FROM-BEAT-3 with the real content_id  >>>>>>
-curl -s -X POST http://localhost:5000/appeal -H "Content-Type: application/json" -d '{"content_id":"PASTE-ID-FROM-BEAT-3","creator_reasoning":"I wrote this myself; I am a non-native English speaker so my writing looks formal."}' | python -m json.tool
-   <<<<<<  end  <<<<<<
-
-[POINT] status = "under_review".
-[SAY]   "The status flips to under-review and the appeal is logged
-        next to the original decision for a human moderator."
+[POINT] the confirmation box: status becomes "under review".
+[SAY]   "The appeal is logged next to the original decision and the
+        content is flagged for a human moderator — no automatic
+        re-judging."
 
 
 ------------------------------------------------------------
-BEAT 5 — AUDIT LOG + RATE LIMIT  (~25 sec)
+BEAT 4 — CLEARLY AI TEXT  (~25 sec)
 ------------------------------------------------------------
-[SAY] "Every decision and appeal is written to a structured log."
+[SAY] "And text that's clearly AI-generated."
 
-   >>>>>>  COPY-PASTE (Terminal 2 / git bash)  >>>>>>
-curl -s http://localhost:5000/log | python -m json.tool
-   <<<<<<  end  <<<<<<
+   >>> PASTE INTO THE BOX >>>  (then click Analyze)
+The implementation of comprehensive sustainability initiatives necessitates a multifaceted approach encompassing environmental, economic, and social considerations. Organizations must systematically evaluate their operational frameworks to identify opportunities for optimization. Furthermore, stakeholder engagement remains paramount throughout the transformation process. Consequently, establishing measurable objectives facilitates continuous improvement and accountability across all organizational dimensions.
+   <<< end paste <<<
 
-[POINT] both signal scores (llm_score, stylometry_score), the
-        combined ai_score, and the appeal fields on the formal-text
-        entry (appeal_filed / appeal_reasoning).
-
-[SAY]   "And the submit endpoint is rate limited — ten a minute."
-
-!!! FIRST restart the server so the count is clean:
-    Terminal 1 -> press Ctrl+C, then run:
-
-   >>>>>>  COPY-PASTE (Terminal 1 / PowerShell)  >>>>>>
-.venv\Scripts\python.exe app.py
-   <<<<<<  end  <<<<<<
-
-    THEN run the flood test in Terminal 2:
-
-   >>>>>>  COPY-PASTE (Terminal 2 / git bash)  >>>>>>
-for i in $(seq 1 12); do curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:5000/submit -H "Content-Type: application/json" -d '{"text":"This is a test submission for rate limit testing purposes only.","creator_id":"ratelimit-test"}'; done
-   <<<<<<  end  <<<<<<
-
-[POINT] first 10 print 200, last 2 print 429.
-[SAY]   "First ten succeed, then it blocks the flood."
+[POINT] the red "Likely AI-generated" verdict and the high meter.
+[SAY]   "Here both signals agree it's AI, so it's confident — and even
+        this label is worded carefully and offers an appeal, because
+        the system should never flatly accuse."
 
 
 ------------------------------------------------------------
-BEAT 6 — ONE DESIGN DECISION TO CLOSE  (~20 sec, just talk)
+BEAT 5 — THE AUDIT TRAIL + CLOSE  (~25 sec)
 ------------------------------------------------------------
-[SAY]
-"Two things I'm happy with. First, two genuinely independent signals
-— one reads meaning, one measures structure — so a confident verdict
-needs both to agree. Second, the thresholds are asymmetric: I require
-0.80 to call something AI but only 0.30 to call it human, because on
-a writing platform a false accusation is far worse than a miss. The
-whole system is designed to say 'I don't know' rather than be
-confidently wrong."
+[SAY] "Every decision is logged."
+      Open a new browser tab to:
+
+       http://localhost:5000/log
+
+[POINT] the structured entries — each shows both signal scores, the
+        combined score, and the appeal you just filed (the formal-text
+        entry now shows status "under_review" and your reasoning).
+[SAY]   "Every decision and appeal is captured here. There's also rate
+        limiting on submissions — ten per minute — documented in the
+        README."
+
+[SAY]  (close)
+"Two things I'm proud of: two genuinely independent signals — one
+reads meaning, one measures structure — so a confident verdict needs
+both to agree. And the thresholds are asymmetric: it takes strong
+evidence to call something AI, but less to call it human, because a
+false accusation is far worse than a miss. The whole system is built
+to say 'I don't know' rather than be confidently wrong."
 
 
 ============================================================
-QUICK REFERENCE — SCORES TO EXPECT
+WHAT TO EXPECT ON SCREEN
 ============================================================
-Casual human   -> likely_human   (ai_score ~0.19, confidence ~0.61)
-Formal human   -> uncertain      (ai_score ~0.72, confidence ~0.45)
-Strong AI text -> likely_ai      (ai_score ~0.80+)
-Rate limit     -> 200 x10, then 429
+Casual human text   -> GREEN  "Likely human-written"  (score ~0.19)
+Formal human text   -> YELLOW "Not enough evidence"    (score ~0.72)
+Clearly AI text     -> RED    "Likely AI-generated"    (score ~0.80)
 
-(The LLM signal can vary slightly; exact numbers may shift a little.)
+(The language-model signal varies slightly run to run, so exact
+numbers may shift a little — the colors/bands should hold.)
+
+TIP: the box also runs on Ctrl+Enter, so you don't have to reach for
+the mouse if you'd rather keep talking.
+
+NOTE: submissions are rate limited to 10/minute. If you Analyze a lot
+of times while rehearsing, you may see "Rate limit reached" — just
+wait a minute (or restart the server) before recording.
 
 
 ============================================================

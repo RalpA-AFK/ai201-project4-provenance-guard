@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Provenance Guard</title>
+  <style>
+    :root {
+      --bg: #0f1216; --panel: #171b21; --panel2: #1e242c; --border: #2a323c;
+      --text: #e6e9ee; --muted: #9aa4b2; --accent: #6ea8fe;
+      --ai: #ff6b6b; --human: #51cf66; --uncertain: #ffd43b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5; padding: 32px 16px;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    h1 { margin: 0 0 4px; font-size: 28px; }
+    .tagline { color: var(--muted); margin: 0 0 24px; }
+    textarea {
+      width: 100%; min-height: 160px; resize: vertical; padding: 14px;
+      background: var(--panel); color: var(--text); border: 1px solid var(--border);
+      border-radius: 10px; font-size: 15px; font-family: inherit;
+    }
+    textarea:focus { outline: none; border-color: var(--accent); }
+    .row { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+    button {
+      background: var(--accent); color: #08101f; border: none; font-weight: 600;
+      padding: 11px 20px; border-radius: 10px; font-size: 15px; cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .hint { color: var(--muted); font-size: 13px; }
+    .result { margin-top: 24px; display: none; }
+    .verdict {
+      border: 1px solid var(--border); border-left-width: 6px; border-radius: 10px;
+      padding: 16px 18px; background: var(--panel);
+    }
+    .verdict h2 { margin: 0 0 6px; font-size: 20px; }
+    .verdict .label-text { color: var(--text); }
+    .verdict.ai { border-left-color: var(--ai); }
+    .verdict.human { border-left-color: var(--human); }
+    .verdict.uncertain { border-left-color: var(--uncertain); }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .badge.ai { background: rgba(255,107,107,.15); color: var(--ai); }
+    .badge.human { background: rgba(81,207,102,.15); color: var(--human); }
+    .badge.uncertain { background: rgba(255,212,59,.15); color: var(--uncertain); }
+
+    .why { margin-top: 16px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 18px; }
+    .why h3 { margin: 0 0 12px; font-size: 15px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .05em; }
+    .meter { height: 10px; border-radius: 999px; background: var(--panel2);
+      overflow: hidden; margin: 6px 0 2px; position: relative; }
+    .meter > span { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); }
+    .meter .fill { position: absolute; top: 0; bottom: 0; left: 0;
+      background: linear-gradient(90deg, var(--human), var(--uncertain), var(--ai)); border-radius: 999px; }
+    .scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .signal { margin: 14px 0; }
+    .signal .top { display: flex; justify-content: space-between; font-size: 14px; }
+    .signal .name { font-weight: 600; }
+    .signal .p { color: var(--muted); }
+    .bar { height: 8px; border-radius: 999px; background: var(--panel2); overflow: hidden; margin-top: 6px; }
+    .bar > i { display: block; height: 100%; background: var(--accent); }
+    .rationale { color: var(--muted); font-size: 13px; margin-top: 6px; font-style: italic; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr));
+      gap: 8px; margin-top: 8px; }
+    .metric { background: var(--panel2); border-radius: 8px; padding: 8px 10px; }
+    .metric .k { font-size: 11px; color: var(--muted); }
+    .metric .v { font-size: 16px; font-weight: 600; }
+    .note { color: var(--muted); font-size: 13px; margin-top: 14px; }
+    .error { color: var(--ai); margin-top: 16px; }
+    a { color: var(--accent); }
+
+    .appeal { margin-top: 16px; }
+    .link-btn { background: none; border: none; color: var(--accent); padding: 0;
+      font-size: 14px; cursor: pointer; font-weight: 600; }
+    .appeal textarea { min-height: 80px; margin-top: 10px; }
+    button.secondary { background: var(--panel2); color: var(--text);
+      border: 1px solid var(--border); }
+    .appeal-ok { margin-top: 12px; padding: 12px 14px; border-radius: 10px;
+      background: rgba(110,168,254,.12); border: 1px solid var(--accent);
+      color: var(--text); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Provenance Guard</h1>
+    <p class="tagline">Multi-signal AI-vs-human text attribution — built to communicate uncertainty honestly.</p>
+
+    <textarea id="text" placeholder="Paste a poem, story excerpt, or blog post here…"></textarea>
+    <div class="row">
+      <button id="analyze">Analyze</button>
+      <span class="hint">Two signals: a language model (meaning) + stylometry (structure).</span>
+    </div>
+
+    <div class="result" id="result">
+      <div class="verdict" id="verdict">
+        <span class="badge" id="badge"></span>
+        <h2 id="verdictTitle"></h2>
+        <div class="label-text" id="labelText"></div>
+      </div>
+
+      <div class="why">
+        <h3>Why — the evidence</h3>
+
+        <div style="font-size:14px;">Combined AI-likelihood
+          <strong id="aiScore"></strong> · reader confidence <strong id="conf"></strong></div>
+        <div class="meter"><div class="fill" id="fill"></div><span id="needle"></span></div>
+        <div class="scale"><span>human (0.0)</span><span>uncertain (0.5)</span><span>AI (1.0)</span></div>
+
+        <div class="signal">
+          <div class="top"><span class="name">🧠 Language model (semantic)</span>
+            <span class="p" id="llmP"></span></div>
+          <div class="bar"><i id="llmBar"></i></div>
+          <div class="rationale" id="llmRationale"></div>
+        </div>
+
+        <div class="signal">
+          <div class="top"><span class="name">📐 Stylometry (structural)</span>
+            <span class="p" id="stylP"></span></div>
+          <div class="bar"><i id="stylBar"></i></div>
+          <div class="metrics" id="metrics"></div>
+        </div>
+
+        <div class="note" id="agreement"></div>
+      </div>
+
+      <div class="appeal" id="appeal">
+        <button class="link-btn" id="appealToggle">Disagree with this result? Appeal it &rarr;</button>
+        <div id="appealForm" style="display:none;">
+          <textarea id="appealReason" placeholder="Explain why you believe this verdict is wrong (e.g. 'I wrote this myself; English is my second language so my style looks formal')…"></textarea>
+          <div class="row">
+            <button class="secondary" id="appealSubmit">Submit appeal</button>
+            <span class="hint">Logs your reasoning and marks the content "under review".</span>
+          </div>
+        </div>
+        <div class="appeal-ok" id="appealOk" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="error" id="error"></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const pct = (x) => Math.round(x * 100) + "%";
+    let lastContentId = null;
+
+    const COPY = {
+      likely_ai:    { title: "Likely AI-generated", cls: "ai",        badge: "AI" },
+      likely_human: { title: "Likely human-written", cls: "human",     badge: "Human" },
+      uncertain:    { title: "Not enough evidence to say", cls: "uncertain", badge: "Uncertain" },
+    };
+
+    async function analyze() {
+      const text = $("text").value.trim();
+      $("error").textContent = "";
+      if (!text) { $("error").textContent = "Please enter some text first."; return; }
+
+      $("analyze").disabled = true; $("analyze").textContent = "Analyzing…";
+      try {
+        const res = await fetch("/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, creator_id: "web-ui" }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          $("error").textContent = res.status === 429
+            ? "Rate limit reached (10/min). Wait a moment and try again."
+            : (data.error || "Something went wrong.");
+          return;
+        }
+        render(data);
+      } catch (e) {
+        $("error").textContent = "Could not reach the server. Is it running?";
+      } finally {
+        $("analyze").disabled = false; $("analyze").textContent = "Analyze";
+      }
+    }
+
+    function render(d) {
+      lastContentId = d.content_id;
+      // reset the appeal UI for each new result
+      $("appealForm").style.display = "none";
+      $("appealOk").style.display = "none";
+      $("appealReason").value = "";
+      $("appealToggle").style.display = "inline";
+
+      const meta = COPY[d.attribution] || COPY.uncertain;
+      $("verdict").className = "verdict " + meta.cls;
+      $("badge").className = "badge " + meta.cls;
+      $("badge").textContent = meta.badge;
+      $("verdictTitle").textContent = meta.title;
+      $("labelText").textContent = d.label;
+
+      $("aiScore").textContent = d.ai_score.toFixed(2);
+      $("conf").textContent = d.confidence.toFixed(2);
+      $("fill").style.width = pct(d.ai_score);
+      $("needle").style.left = pct(d.ai_score);
+
+      const llm = d.signals.llm, styl = d.signals.stylometry;
+      $("llmP").textContent = "AI-likelihood " + llm.p_ai.toFixed(2);
+      $("llmBar").style.width = pct(llm.p_ai);
+      $("llmRationale").textContent = llm.rationale ? "“" + llm.rationale + "”" : "";
+
+      $("stylP").textContent = "AI-likelihood " + styl.p_ai.toFixed(2);
+      $("stylBar").style.width = pct(styl.p_ai);
+      const m = styl.metrics;
+      $("metrics").innerHTML = [
+        ["Sentence-length variation", m.cv],
+        ["Avg word length", m.avg_word_len],
+        ["Long-word fraction", m.long_word_ratio],
+        ["Word count", m.word_count],
+      ].map(([k, v]) => `<div class="metric"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+      const gap = Math.abs(llm.p_ai - styl.p_ai);
+      $("agreement").textContent = gap >= 0.35
+        ? `The two signals disagree (gap ${gap.toFixed(2)}), so the score is pulled toward the uncertain middle — the system declines to guess rather than risk a false accusation.`
+        : `The two signals agree (gap ${gap.toFixed(2)}), which lets the verdict sit confidently rather than in the uncertain band.`;
+
+      $("result").style.display = "block";
+    }
+
+    $("analyze").addEventListener("click", analyze);
+    $("text").addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") analyze();
+    });
+
+    $("appealToggle").addEventListener("click", () => {
+      $("appealForm").style.display = "block";
+      $("appealToggle").style.display = "none";
+      $("appealReason").focus();
+    });
+
+    async function submitAppeal() {
+      const reason = $("appealReason").value.trim();
+      if (!reason) { $("appealReason").focus(); return; }
+      $("appealSubmit").disabled = true; $("appealSubmit").textContent = "Submitting…";
+      try {
+        const res = await fetch("/appeal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content_id: lastContentId, creator_reasoning: reason }),
+        });
+        const data = await res.json();
+        if (!res.ok) { $("error").textContent = data.error || "Appeal failed."; return; }
+        $("appealForm").style.display = "none";
+        $("appealOk").style.display = "block";
+        $("appealOk").textContent = "✓ " + data.message + " (status: " + data.status + ")";
+      } catch (e) {
+        $("error").textContent = "Could not reach the server.";
+      } finally {
+        $("appealSubmit").disabled = false; $("appealSubmit").textContent = "Submit appeal";
+      }
+    }
+    $("appealSubmit").addEventListener("click", submitAppeal);
+  </script>
+</body>
+</html>

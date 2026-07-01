@@ -12,7 +12,7 @@ Every decision and appeal is written to a structured SQLite audit log.
 import uuid
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -38,6 +38,11 @@ limiter = Limiter(
 )
 
 
+@app.get("/")
+def index():
+    return render_template("index.html")
+
+
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
@@ -58,7 +63,14 @@ def submit():
     content_id = str(uuid.uuid4())
 
     # Two independent signals: semantic (LLM) and structural (stylometry).
-    llm = signals.llm_signal(text)
+    try:
+        llm = signals.llm_signal(text)
+    except Exception as exc:  # e.g. invalid/missing GROQ_API_KEY, network error
+        return jsonify({
+            "error": "The AI language-model signal is unavailable. Check that "
+                     "GROQ_API_KEY in your .env is a valid key.",
+            "detail": str(exc),
+        }), 502
     stylometry = signals.stylometry_signal(text)
 
     # Combine into a single calibrated score (disagreement -> uncertainty).
