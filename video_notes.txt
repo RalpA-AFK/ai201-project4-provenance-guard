@@ -32,16 +32,14 @@ rm -f audit_log.db
 
    >>>>>>  COPY-PASTE (Terminal 1 / PowerShell)  >>>>>>
 cd c:\Users\babyd\.vscode\ai201-project4-provenance-guard
-.venv\Scripts\Activate.ps1
-python app.py
+.venv\Scripts\python.exe app.py
    <<<<<<  end  <<<<<<
 
 Wait for:  Running on http://127.0.0.1:5000
-(If Activate.ps1 is blocked, use this single line instead:)
 
-   >>>>>>  COPY-PASTE (Terminal 1 / PowerShell)  >>>>>>
-.venv\Scripts\python.exe app.py
-   <<<<<<  end  <<<<<<
+NOTE: use ".venv\Scripts\python.exe app.py" (the venv's Python) —
+plain "python app.py" uses system Python and fails with
+"No module named 'dotenv'". Do NOT type "cd activate.ps1".
 
 
 ############################################################
@@ -128,7 +126,7 @@ curl -s http://localhost:5000/log | python -m json.tool
     Terminal 1 -> press Ctrl+C, then run:
 
    >>>>>>  COPY-PASTE (Terminal 1 / PowerShell)  >>>>>>
-python app.py
+.venv\Scripts\python.exe app.py
    <<<<<<  end  <<<<<<
 
     THEN run the flood test in Terminal 2:
